@@ -22,7 +22,7 @@ $loadedCats = '<categories>
 </category>
 <category>
 <category_id>71</category_id>
-<category_parent_id>705</category_parent_id>
+<category_parent_id>1196</category_parent_id>
 <category_name>cat4</category_name>
 </category>
 </categories>';
@@ -62,8 +62,8 @@ https://www.canis-prosper.cz/produkty/original/8848.jpg
 $catUrl = "https://www.canis-prosper.cz/export/export_velkoobchod.php?co=catalog&login=prucek@live.com&hash=8fd2168251ec264fcd866d3c503020bb2a375f03";
 $prodUrl = "https://www.canis-prosper.cz/export/export_velkoobchod.php?co=products&login=prucek@live.com&hash=8fd2168251ec264fcd866d3c503020bb2a375f03";
 
-#$cats = simplexml_load_file($catUrl);
-$cats = simplexml_load_string($loadedCats);
+$cats = simplexml_load_file($catUrl);
+#$cats = simplexml_load_string($loadedCats);
 #$prods = simplexml_load_file($prodUrl);
 $prods = simplexml_load_string($loadProd);
 $output = [];
@@ -81,34 +81,50 @@ foreach ($prods as $obj) {
 }
 
 # TODO strukturovat kategorie podle jejich hierachie
-$scheme = [];
+$roots = '<roots>';
 foreach ($categories as $key => $cat) {
 	if($cat["category_parent_id"] == 0){
-		getScheme($cat);
+		    $roots .= getTree($cat); 
 	}
 	
 }
+$roots .= '</roots>';
 
-function getScheme($mainCat, $actualCat = []){
+function getTree($cat, $actualCat = []){
+	$children = getAllChildren($cat);
+	$tree = '';
+	if(count($children) > 0){
+		$tree .= '<category>'
+					.'<id>' . $cat['category_id'] . '</id>'
+					. '<name>' . $cat['category_name'] . '</name>'
+				.'<children>';
+		foreach ($children as $key => $child) {
+			$tree .= getTree($child);
+		}
+		$tree .=  '</children>';
+		$tree .= '</category>';
 
-	$scheme [] = $mainCat;
-	print_r($mainCat);
+		return $tree;
+
+	} else {
+		return '<category>'
+				 . '<id>' . $cat['category_id'] . '</id>'
+				 . '<name>' . $cat['category_name'] . '</name>'
+			  .'</category>';
+	}
 }
-foreach ($categories as $key => $cat){
-		$id = $cat["category_id"];
-		
-		foreach ($categories as $ss => $category){
-			$parentId = $category["category_parent_id"];
-			$childId = $category["category_id"];
-			if($parentId === $id){
-				$c[$parentId]["categories"][] =  $categories[$childId];
 
-				$toRemove[]= $childId;
-			}
+function getAllChildren($cat) {
+	$children = [];
+	foreach ($GLOBALS['categories'] as $key => $item) {
+		if($item["category_parent_id"] == $cat["category_id"]){
+				$children [] = $item; 
 		}
 		
+	}
+	return $children;
 }
 
-print_r($scheme);
-
+file_put_contents("vystup.xml", $roots);
+print_r($roots);
 ?>
