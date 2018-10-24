@@ -22,7 +22,7 @@ $loadedCats = '<categories>
 </category>
 <category>
 <category_id>71</category_id>
-<category_parent_id>1196</category_parent_id>
+<category_parent_id>705</category_parent_id>
 <category_name>cat4</category_name>
 </category>
 </categories>';
@@ -32,7 +32,7 @@ $loadProd = '<products>
 <product_id>8848</product_id>
 <product_code>SN:090938</product_code>
 <part_number/>
-<category_id>77</category_id>
+<category_id>71</category_id>
 <categoryies_id/>
 <name>Pes velká tlama 20cm</name>
 <short_description/>
@@ -64,8 +64,8 @@ $prodUrl = "https://www.canis-prosper.cz/export/export_velkoobchod.php?co=produc
 
 $cats = simplexml_load_file($catUrl);
 #$cats = simplexml_load_string($loadedCats);
-#$prods = simplexml_load_file($prodUrl);
-$prods = simplexml_load_string($loadProd);
+$prods = simplexml_load_file($prodUrl);
+#$prods = simplexml_load_string($loadProd);
 $output = [];
 $categories = [];
 $products = [];
@@ -76,8 +76,12 @@ foreach ($cats as $obj) {
 }
 
 foreach ($prods as $obj) {
-	$value = get_object_vars($obj);
-	$products[$value["product_id"]] = $value;
+	$product = get_object_vars($obj);
+	$category = getCategoryForId($product["category_id"]);
+	if($category) {
+		//$product['categories'] = getTree($category);
+	}
+	$products[$product["product_id"]] = $product;
 }
 
 # TODO strukturovat kategorie podle jejich hierachie
@@ -85,33 +89,55 @@ $roots = '<roots>';
 foreach ($categories as $key => $cat) {
 	if($cat["category_parent_id"] == 0){
 		    $roots .= getTree($cat); 
-	}
+	}	
 	
 }
 $roots .= '</roots>';
 
-function getTree($cat, $actualCat = []){
+function getTree($cat, $branch = ''){
+
 	$children = getAllChildren($cat);
 	$tree = '';
+	print_r(1111111111);
 	if(count($children) > 0){
-		$tree .= '<category>'
-					.'<id>' . $cat['category_id'] . '</id>'
-					. '<name>' . $cat['category_name'] . '</name>'
-				.'<children>';
-		foreach ($children as $key => $child) {
-			$tree .= getTree($child);
+		
+		$tree .=  $cat['category_name'] . ' | ' ;
+		$branch .= $tree;
+		foreach ($children as $key => $child) {			
+			$tree .= getTree($child, $branch);
 		}
-		$tree .=  '</children>';
-		$tree .= '</category>';
 
 		return $tree;
 
 	} else {
-		return '<category>'
-				 . '<id>' . $cat['category_id'] . '</id>'
-				 . '<name>' . $cat['category_name'] . '</name>'
-			  .'</category>';
+		
+		$branch .= $cat['category_name'];
+		$products = getProductsForCategoryId($cat['category_id']);		
+		foreach ($products as $key => $prod) {
+			$GLOBALS['products'][$prod['product_id']]['categories'] = $branch;
+		}
+		return $branch;
 	}
+}
+
+function getProductsForCategoryId($id){
+	$out = [];
+	foreach ($GLOBALS['products'] as $key => $prod) {
+		if($id == $prod["category_id"]){
+				$out [] = $prod;
+		}
+	}
+	return $out;	
+}
+
+
+function getCategoryForId($id) {
+	foreach ($GLOBALS['categories'] as $key => $cat) {
+		if($id == $cat["category_id"]){
+				return $cat;
+		}
+	}
+	
 }
 
 function getAllChildren($cat) {
@@ -125,6 +151,44 @@ function getAllChildren($cat) {
 	return $children;
 }
 
-file_put_contents("vystup.xml", $roots);
-print_r($roots);
+$xml_out = "<products>";
+foreach ($products as $key => $product) {
+		$xml_out .= '<product>
+		<product_id>'. $product["product_id"] .'</product_id>
+		<product_code>'. $product["product_code"] .'</product_code>
+		<part_number/>
+		<category_id>'. $product["category_id"] .'</category_id>
+		<categories>
+		'. $product["categories"] .'
+		</categories>		
+		<name>'. $product["name"] .'</name>
+		<short_description/>
+		<long_description>
+		'. $product["long_description"] .'
+		</long_description>
+		<tech_description/>
+		<producer>'. $product["producer"] .'</producer>
+		<action>'. $product["action"] .'</action>
+		<unit>'. $product["unit"] .'</unit>
+		<guarantee>'. $product["guarantee"] .'</guarantee>
+		<price>'. $product["price"] .'</price>
+		<vat>'. $product["vat"] .'</vat>
+		<availability>'. $product["availability"] .'</availability>
+		<availability_all>'. $product["availability_all"] .'</availability_all>
+		<images>
+		<image>
+		'. $product["image"] .'
+		</image>
+		</images>
+		<recycling_charges>'. $product["recycling_charges"] .'</recycling_charges>
+		<ean>'. $product["ean"] .'</ean>
+		<weight>'. $product["weight"] .'</weight>
+		</product>';
+}
+
+$xml_out .= "</products>";
+
+file_put_contents("vystup.xml", $xml_out);
+print_r($xml_out);
+
 ?>
