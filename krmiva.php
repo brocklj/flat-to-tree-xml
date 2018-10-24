@@ -188,7 +188,7 @@ foreach ($products as $key => $product) {
 
 $xml_out .= "</products>";
 
-file_put_contents("vystup.xml", $xml_out);
+//file_put_contents("vystup.xml", $xml_out);
 print_r($xml_out);
 
 ?>
